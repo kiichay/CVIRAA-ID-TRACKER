@@ -8,7 +8,7 @@ const mysql = require('mysql2');
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '1234', // Update this with your MySQL password or set in .env
+  password: process.env.DB_PASSWORD || 'berame', // Update this with your MySQL password or set in .env
   database: process.env.DB_NAME || 'cviraa',
   charset: 'utf8mb4', // Support Ñ and other Unicode (e.g. Cañete) in names and QR codes
   waitForConnections: true,
