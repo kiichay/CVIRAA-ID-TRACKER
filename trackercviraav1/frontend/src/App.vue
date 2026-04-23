@@ -40,7 +40,7 @@
       </div>
     </nav>
     <main class="main-content">
-      <router-view/>
+      <router-view class="router-fill"/>
     </main>
 
     <!-- Full-page QR Scanner modal -->
@@ -88,22 +88,27 @@ export default {
 </script>
 
 <style>
-* {
+html, body {
   margin: 0;
   padding: 0;
+  height: 100%;
+  overflow: hidden; /* Prevent any scroll at the page level */
+}
+ 
+* {
   box-sizing: border-box;
 }
-
+ 
 #app {
   font-family: Avenir, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   color: #2c3e50;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   background-color: #f5f5f5;
-  display: flex;
 }
-
+ 
 .sidebar {
   width: 260px;
   min-width: 260px;
@@ -117,13 +122,14 @@ export default {
   z-index: 100;
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
 }
-
+ 
 .sidebar-brand {
   padding: 20px;
   border-bottom: 1px solid #eee;
 }
-
+ 
 .sidebar-brand h2 {
   color: #42b983;
   font-size: 18px;
@@ -131,14 +137,14 @@ export default {
   line-height: 1.4;
   font-weight: 600;
 }
-
+ 
 .sidebar-links {
   padding: 20px 0;
   display: flex;
   flex-direction: column;
   gap: 5px;
 }
-
+ 
 .sidebar-link {
   display: flex;
   align-items: center;
@@ -158,87 +164,100 @@ export default {
   border-bottom: none;
   background: none;
 }
-
+ 
 .sidebar-link:hover {
   background-color: #f0f0f0;
   color: #42b983;
   border-left-color: #42b983;
 }
-
+ 
 nav button.sidebar-link {
   cursor: pointer;
 }
-
+ 
 .sidebar-link.router-link-exact-active {
   background-color: #e8f5e9;
   color: #42b983;
   border-left-color: #42b983;
   font-weight: 600;
 }
-
+ 
 .link-icon {
   font-size: 20px;
   width: 24px;
   text-align: center;
 }
-
+ 
 .link-text {
   flex: 1;
 }
-
-.main-content {
+ 
+.router-fill {
   flex: 1;
-  margin-left: 260px;
-  min-height: 100vh;
-  width: calc(100% - 260px);
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
-
+ 
+.main-content {
+  position: fixed;
+  top: 0;
+  left: 260px;
+  right: 0;
+  bottom: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+}
+ 
 @media (max-width: 768px) {
   .sidebar {
     width: 70px;
     min-width: 70px;
   }
-
+ 
   .sidebar-brand h2 {
     font-size: 12px;
     text-align: center;
   }
-
+ 
   .link-text {
     display: none;
   }
-
+ 
   .sidebar-link {
     justify-content: center;
     padding: 12px;
   }
-
+ 
   .link-icon {
     font-size: 24px;
   }
-
+ 
   .main-content {
-    margin-left: 70px;
-    width: calc(100% - 70px);
+    left: 70px;
   }
 }
-
+ 
 @media (max-width: 480px) {
   .sidebar {
     transform: translateX(-100%);
     transition: transform 0.3s ease;
   }
-
+ 
   .sidebar.open {
     transform: translateX(0);
   }
-
+ 
   .main-content {
-    margin-left: 0;
-    width: 100%;
+    left: 0;
   }
 }
-
+ 
 /* Full-page QR Scanner modal */
 .scanner-modal-overlay {
   position: fixed;
