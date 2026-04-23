@@ -144,7 +144,7 @@
             </option>
           </select>
 
-          <select v-model="idCardFilterEventType" class="filter-select">
+          <select v-model="idCardFilterEventType" class="filter-select" :disabled="isCommitteeSelected">
             <option value="">All Events</option>
             <option v-for="e in eventTypes" :key="`idcard-event-${e.value}`" :value="e.value">
               {{ e.label }}
@@ -480,6 +480,14 @@ export default {
       photoExportMode: 'all'
     };
   },
+  computed: {
+    isCommitteeSelected() {
+      const selectedGroup = this.roleGroups.find(
+        g => String(g.rolegroupid) === this.idCardFilterRoleGroup
+      );
+      return selectedGroup?.rolegroupname === 'Committee';
+    }
+  },
   async mounted() {
     document.addEventListener('click', this.closeExcelSearchOnClickOutside);
     // Load event types and roleGroups + roles (new structure)
@@ -514,6 +522,8 @@ export default {
     if (this.excelSearchDebounce) clearTimeout(this.excelSearchDebounce);
     if (this.individualSearchDebounce) clearTimeout(this.individualSearchDebounce);
   },
+
+  
   methods: {
     // Expose shared helpers so they can be used in templates
     getImageUrl,
@@ -2686,6 +2696,7 @@ export default {
       }, 5000);
     }
   }
+  
 };
 </script>
 
