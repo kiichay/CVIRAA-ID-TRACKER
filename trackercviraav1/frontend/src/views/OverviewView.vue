@@ -1,391 +1,3 @@
-<template>
-  <div class="overview-view">
- 
-    <!-- Page Header -->
-    <div class="page-header">
-      <div class="header-badge">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-        </svg>
-        LIVE TRACKING
-      </div>
-      <h1 class="page-title">Overview IN/OUT Track</h1>
-      <p class="page-subtitle">Select an event or view all, then click <span class="highlight-text">Show</span> to load data</p>
-    </div>
- 
-    <!-- Filter Card -->
-    <div class="filter-card">
-      <div class="filter-group">
-        <label class="filter-label">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M22 3H2l8 9.46V19l4 2V12.46L22 3z"/>
-          </svg>
-          Event
-        </label>
-        <div class="select-wrapper">
-          <select v-model="selectedEvent" class="filter-select">
-            <option value="">All Events</option>
-            <option
-              v-for="e in eventTypes"
-              :key="`overview-event-${e.value}`"
-              :value="String(e.value)"
-            >
-              {{ e.label }}
-            </option>
-          </select>
-          <svg class="select-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <polyline points="6 9 12 15 18 9"/>
-          </svg>
-        </div>
-      </div>
- 
-      <div class="filter-actions">
-        <button @click="loadOverview" class="btn-show">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-          </svg>
-          Show
-        </button>
-        <button
-          @click="createExcel"
-          class="btn-export"
-          :disabled="!showTable || summaryRows.length === 0"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
-            <polyline points="14 2 14 8 20 8"/>
-            <line x1="16" y1="13" x2="8" y2="13"/>
-            <line x1="16" y1="17" x2="8" y2="17"/>
-          </svg>
-          Export Excel
-        </button>
-      </div>
-    </div>
- 
-    <!-- Loading State -->
-    <div v-if="loading" class="loading-state">
-      <div class="loading-spinner"></div>
-      <span>Loading data...</span>
-    </div>
- 
-    <!-- Table Section -->
-    <div v-if="showTable && !loading" class="table-container">
- 
-      <!-- Stats Strip -->
-      <div v-if="summaryRows.length > 0" class="stats-strip">
-        <div class="stat-item">
-          <span class="stat-value">{{ totals.total }}</span>
-          <span class="stat-label">Total Persons</span>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat-item">
-          <span class="stat-value green">{{ totals.totalIn }}</span>
-          <span class="stat-label">Total IN</span>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat-item">
-          <span class="stat-value red">{{ totals.totalOut }}</span>
-          <span class="stat-label">Total OUT</span>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat-item">
-          <span class="stat-value">{{ summaryRows.length }}</span>
-          <span class="stat-label">Sports Events</span>
-        </div>
-      </div>
- 
-      <!-- Table -->
-      <div class="table-scroll-wrapper">
-        <table class="overview-table">
-          <thead>
-            <tr>
-              <th class="th-sports col-sticky">Sports</th>
-              <th class="th-total">Total</th>
-              <th class="th-in">Athlete IN</th>
-              <th class="th-out">Athlete OUT</th>
-              <th class="th-in">Coach IN</th>
-              <th class="th-out">Coach OUT</th>
-              <th class="th-in">Chaperon IN</th>
-              <th class="th-out">Chaperon OUT</th>
-              <th class="th-in">Asst. Coach IN</th>
-              <th class="th-out">Asst. Coach OUT</th>
-              <th class="th-in">Trainer IN</th>
-              <th class="th-out">Trainer OUT</th>
-              <th class="th-total-in">Total IN</th>
-              <th class="th-total-out">Total OUT</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="(row, index) in summaryRows"
-              :key="row.eventType"
-              :style="{ animationDelay: `${index * 40}ms` }"
-              class="data-row"
-            >
-              <td class="td-sports col-sticky">{{ row.eventType }}</td>
-              <td class="td-total">{{ row.total }}</td>
-              <td class="td-in">{{ row.athleteIn }}</td>
-              <td class="td-out">{{ row.athleteOut }}</td>
-              <td class="td-in">{{ row.coachIn }}</td>
-              <td class="td-out">{{ row.coachOut }}</td>
-              <td class="td-in">{{ row.chaperonIn }}</td>
-              <td class="td-out">{{ row.chaperonOut }}</td>
-              <td class="td-in">{{ row.asstCoachIn }}</td>
-              <td class="td-out">{{ row.asstCoachOut }}</td>
-              <td class="td-in">{{ row.trainerIn }}</td>
-              <td class="td-out">{{ row.trainerOut }}</td>
-              <td class="td-total-in">{{ row.totalIn }}</td>
-              <td class="td-total-out">{{ row.totalOut }}</td>
-            </tr>
-          </tbody>
-          <tfoot v-if="summaryRows.length > 0">
-            <tr class="totals-row">
-              <td class="td-sports col-sticky">Total Persons</td>
-              <td class="td-total">{{ totals.total }}</td>
-              <td class="td-in">{{ totals.athleteIn }}</td>
-              <td class="td-out">{{ totals.athleteOut }}</td>
-              <td class="td-in">{{ totals.coachIn }}</td>
-              <td class="td-out">{{ totals.coachOut }}</td>
-              <td class="td-in">{{ totals.chaperonIn }}</td>
-              <td class="td-out">{{ totals.chaperonOut }}</td>
-              <td class="td-in">{{ totals.asstCoachIn }}</td>
-              <td class="td-out">{{ totals.asstCoachOut }}</td>
-              <td class="td-in">{{ totals.trainerIn }}</td>
-              <td class="td-out">{{ totals.trainerOut }}</td>
-              <td class="td-total-in">{{ totals.totalIn }}</td>
-              <td class="td-total-out">{{ totals.totalOut }}</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
- 
-      <!-- Empty State -->
-      <div v-if="summaryRows.length === 0" class="empty-state">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <circle cx="12" cy="12" r="10"/>
-          <line x1="12" y1="8" x2="12" y2="12"/>
-          <line x1="12" y1="16" x2="12.01" y2="16"/>
-        </svg>
-        <p>No data found for the selected event.</p>
-      </div>
- 
-    </div>
- 
-  </div>
-</template>
-
-<script>
-import { eventTypes, personnelAPI } from '@/services/api';
-
-// roleid mapping as requested
-const ROLE_MAP = {
-  1: 'athlete',
-  2: 'asstcoach',
-  3: 'chaperon',
-  4: 'coach',
-  5: 'trainer'
-};
-
-export default {
-  name: 'OverviewView',
-  data() {
-    return {
-      eventTypes,
-      selectedEvent: '',
-      loading: false,
-      showTable: false,
-      summaryRows: []
-    };
-  },
-
-//  Automatically load all events when this page opens
-  mounted() {
-  this.loadOverview();
-},
-  computed: {
-    totals() {
-      return this.summaryRows.reduce(
-        (acc, row) => {
-          acc.total += Number(row.total || 0);
-          acc.athleteIn += Number(row.athleteIn || 0);
-          acc.athleteOut += Number(row.athleteOut || 0);
-          acc.coachIn += Number(row.coachIn || 0);
-          acc.coachOut += Number(row.coachOut || 0);
-          acc.chaperonIn += Number(row.chaperonIn || 0);
-          acc.chaperonOut += Number(row.chaperonOut || 0);
-          acc.asstCoachIn += Number(row.asstCoachIn || 0);
-          acc.asstCoachOut += Number(row.asstCoachOut || 0);
-          acc.trainerIn += Number(row.trainerIn || 0);
-          acc.trainerOut += Number(row.trainerOut || 0);
-          acc.totalIn += Number(row.totalIn || 0);
-          acc.totalOut += Number(row.totalOut || 0);
-          return acc;
-        },
-        {
-          total: 0,
-          athleteIn: 0,
-          athleteOut: 0,
-          coachIn: 0,
-          coachOut: 0,
-          chaperonIn: 0,
-          chaperonOut: 0,
-          asstCoachIn: 0,
-          asstCoachOut: 0,
-          trainerIn: 0,
-          trainerOut: 0,
-          totalIn: 0,
-          totalOut: 0
-        }
-      );
-    }
-  },
-  methods: {
-    async loadOverview() {
-      this.showTable = false;
-      this.loading = true;
-      this.summaryRows = [];
-
-      try {
-        const params = {
-          roleGroup: 1 // sports only
-        };
-        if (this.selectedEvent) {
-          params.eventType = this.selectedEvent;
-        }
-
-        const response = await personnelAPI.getAll(params);
-        const persons = Array.isArray(response.data) ? response.data : [];
-
-        // Count by event then by role/status
-        const eventCounts = new Map();
-
-        persons.forEach((p) => {
-          const eventName = p.eventTypeName || (p.eventType !== null && p.eventType !== undefined ? String(p.eventType) : 'Unknown');
-          const roleIdNum = Number(p.roleid || p.role);
-          const roleNameRaw = (p.roleName || p.rolename || p.role || '').toString().toLowerCase();
-          let roleKey = ROLE_MAP[roleIdNum];
-
-          // fallback by string role name in case roleid is not set
-          if (!roleKey) {
-            if (roleNameRaw.includes('athlete')) roleKey = 'athlete';
-            else if (roleNameRaw.includes('asst')) roleKey = 'asstcoach';
-            else if (roleNameRaw.includes('chaperon')) roleKey = 'chaperon';
-            else if (roleNameRaw.includes('coach')) roleKey = 'coach';
-            else if (roleNameRaw.includes('trainer')) roleKey = 'trainer';
-          }
-
-          const status = p.personnelStatus !== null && p.personnelStatus !== undefined
-            ? Number(p.personnelStatus)
-            : ((p.statusName || '').toLowerCase() === 'in' ? 1 : 0);
-
-          if (!roleKey) {
-            return; // skip non-target roles
-          }
-
-          if (!eventCounts.has(eventName)) {
-            eventCounts.set(eventName, {
-              athleteIn: 0,
-              athleteOut: 0,
-              coachIn: 0,
-              coachOut: 0,
-              chaperonIn: 0,
-              chaperonOut: 0,
-              asstCoachIn: 0,
-              asstCoachOut: 0,
-              trainerIn: 0,
-              trainerOut: 0,
-              total: 0
-            });
-          }
-
-          const row = eventCounts.get(eventName);
-          row.total += 1;
-
-          if (roleIdNum === 1) {
-            status === 1 ? row.athleteIn++ : row.athleteOut++;
-          } else if (roleIdNum === 2) {
-            status === 1 ? row.asstCoachIn++ : row.asstCoachOut++;
-          } else if (roleIdNum === 3) {
-            status === 1 ? row.chaperonIn++ : row.chaperonOut++;
-          } else if (roleIdNum === 4) {
-            status === 1 ? row.coachIn++ : row.coachOut++;
-          } else if (roleIdNum === 5) {
-            status === 1 ? row.trainerIn++ : row.trainerOut++;
-          }
-        });
-
-        this.summaryRows = Array.from(eventCounts.entries())
-          .map(([eventType, data]) => {
-            const totalIn = data.athleteIn + data.coachIn + data.chaperonIn + data.asstCoachIn + data.trainerIn;
-            const totalOut = data.athleteOut + data.coachOut + data.chaperonOut + data.asstCoachOut + data.trainerOut;
-            return {
-              eventType,
-              ...data,
-              totalIn,
-              totalOut
-            };
-          })
-          .sort((a, b) => a.eventType.localeCompare(b.eventType));
-
-        this.showTable = true;
-      } catch (err) {
-        console.error('Error loading overview:', err);
-        this.summaryRows = [];
-        this.showTable = true;
-      } finally {
-        this.loading = false;
-      }
-    },
-
-    createExcel() {
-      if (!this.summaryRows || this.summaryRows.length === 0) {
-        return;
-      }
-
-      const columns = [
-        'Sports',
-        'Total',
-        'Athlete-IN',
-        'Athlete-OUT',
-        'Coach-IN',
-        'Coach-OUT',
-        'Chaperon-IN',
-        'Chaperon-OUT',
-        'AsstCoach-IN',
-        'AsstCoach-OUT',
-        'Trainer-IN',
-        'Trainer-OUT'
-      ];
-
-      const rows = this.summaryRows.map((r) => [
-        r.eventType,
-        r.total,
-        r.athleteIn,
-        r.athleteOut,
-        r.coachIn,
-        r.coachOut,
-        r.chaperonIn,
-        r.chaperonOut,
-        r.asstCoachIn,
-        r.asstCoachOut,
-        r.trainerIn,
-        r.trainerOut
-      ]);
-
-      const csvContent = [columns.join(','), ...rows.map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))].join('\r\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `overview-in-out-${new Date().toISOString().slice(0, 10)}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    }
-  }
-};
-</script>
 
 <style scoped>
 /* ── CSS Variables ── */
@@ -818,6 +430,397 @@ tfoot .col-sticky { background: var(--gray-100); z-index: 3; }
   .th-in, .th-out { min-width: 65px; max-width: 65px; width: 65px; }
 }
 </style>
+
+
+<template>
+  <div class="overview-view">
+ 
+    <!-- Page Header -->
+    <div class="page-header">
+      <div class="header-badge">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+        </svg>
+        LIVE TRACKING
+      </div>
+      <h1 class="page-title">Overview IN/OUT Track</h1>
+      <p class="page-subtitle">Select an event or view all, then click <span class="highlight-text">Show</span> to load data</p>
+    </div>
+ 
+    <!-- Filter Card -->
+    <div class="filter-card">
+      <div class="filter-group">
+        <label class="filter-label">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 3H2l8 9.46V19l4 2V12.46L22 3z"/>
+          </svg>
+          Event
+        </label>
+        <div class="select-wrapper">
+          <select v-model="selectedEvent" class="filter-select">
+            <option value="">All Events</option>
+            <option
+              v-for="e in eventTypes"
+              :key="`overview-event-${e.value}`"
+              :value="String(e.value)"
+            >
+              {{ e.label }}
+            </option>
+          </select>
+          <svg class="select-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </div>
+      </div>
+ 
+      <div class="filter-actions">
+        <button @click="loadOverview" class="btn-show">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          Show
+        </button>
+        <button
+          @click="createExcel"
+          class="btn-export"
+          :disabled="!showTable || summaryRows.length === 0"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+          Export Excel
+        </button>
+      </div>
+    </div>
+ 
+    <!-- Loading State -->
+    <div v-if="loading" class="loading-state">
+      <div class="loading-spinner"></div>
+      <span>Loading data...</span>
+    </div>
+ 
+    <!-- Table Section -->
+    <div v-if="showTable && !loading" class="table-container">
+ 
+      <!-- Stats Strip -->
+      <div v-if="summaryRows.length > 0" class="stats-strip">
+        <div class="stat-item">
+          <span class="stat-value">{{ totals.total }}</span>
+          <span class="stat-label">Total Persons</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-value green">{{ totals.totalIn }}</span>
+          <span class="stat-label">Total IN</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-value red">{{ totals.totalOut }}</span>
+          <span class="stat-label">Total OUT</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-value">{{ summaryRows.length }}</span>
+          <span class="stat-label">Sports Events</span>
+        </div>
+      </div>
+ 
+      <!-- Table -->
+      <div class="table-scroll-wrapper">
+        <table class="overview-table">
+          <thead>
+            <tr>
+              <th class="th-sports col-sticky">Sports</th>
+              <th class="th-total">Total</th>
+              <th class="th-in">Athlete IN</th>
+              <th class="th-out">Athlete OUT</th>
+              <th class="th-in">Coach IN</th>
+              <th class="th-out">Coach OUT</th>
+              <th class="th-in">Chaperon IN</th>
+              <th class="th-out">Chaperon OUT</th>
+              <th class="th-in">Asst. Coach IN</th>
+              <th class="th-out">Asst. Coach OUT</th>
+              <th class="th-in">Trainer IN</th>
+              <th class="th-out">Trainer OUT</th>
+              <th class="th-total-in">Total IN</th>
+              <th class="th-total-out">Total OUT</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="(row, index) in summaryRows"
+              :key="row.eventType"
+              :style="{ animationDelay: `${index * 40}ms` }"
+              class="data-row"
+            >
+              <td class="td-sports col-sticky">{{ row.eventType }}</td>
+              <td class="td-total">{{ row.total }}</td>
+              <td class="td-in">{{ row.athleteIn }}</td>
+              <td class="td-out">{{ row.athleteOut }}</td>
+              <td class="td-in">{{ row.coachIn }}</td>
+              <td class="td-out">{{ row.coachOut }}</td>
+              <td class="td-in">{{ row.chaperonIn }}</td>
+              <td class="td-out">{{ row.chaperonOut }}</td>
+              <td class="td-in">{{ row.asstCoachIn }}</td>
+              <td class="td-out">{{ row.asstCoachOut }}</td>
+              <td class="td-in">{{ row.trainerIn }}</td>
+              <td class="td-out">{{ row.trainerOut }}</td>
+              <td class="td-total-in">{{ row.totalIn }}</td>
+              <td class="td-total-out">{{ row.totalOut }}</td>
+            </tr>
+          </tbody>
+          <tfoot v-if="summaryRows.length > 0">
+            <tr class="totals-row">
+              <td class="td-sports col-sticky">Total Persons</td>
+              <td class="td-total">{{ totals.total }}</td>
+              <td class="td-in">{{ totals.athleteIn }}</td>
+              <td class="td-out">{{ totals.athleteOut }}</td>
+              <td class="td-in">{{ totals.coachIn }}</td>
+              <td class="td-out">{{ totals.coachOut }}</td>
+              <td class="td-in">{{ totals.chaperonIn }}</td>
+              <td class="td-out">{{ totals.chaperonOut }}</td>
+              <td class="td-in">{{ totals.asstCoachIn }}</td>
+              <td class="td-out">{{ totals.asstCoachOut }}</td>
+              <td class="td-in">{{ totals.trainerIn }}</td>
+              <td class="td-out">{{ totals.trainerOut }}</td>
+              <td class="td-total-in">{{ totals.totalIn }}</td>
+              <td class="td-total-out">{{ totals.totalOut }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+ 
+      <!-- Empty State -->
+      <div v-if="summaryRows.length === 0" class="empty-state">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <p>No data found for the selected event.</p>
+      </div>
+ 
+    </div>
+ 
+  </div>
+</template>
+
+<script>
+import { eventTypes, personnelAPI } from '@/services/api';
+
+// roleid mapping as requested
+const ROLE_MAP = {
+  1: 'athlete',
+  2: 'asstcoach',
+  3: 'chaperon',
+  4: 'coach',
+  5: 'trainer'
+};
+
+export default {
+  name: 'OverviewView',
+  data() {
+    return {
+      eventTypes,
+      selectedEvent: '',
+      loading: false,
+      showTable: false,
+      summaryRows: []
+    };
+  },
+
+//  Automatically load all events when this page opens
+  mounted() {
+  this.loadOverview();
+},
+  computed: {
+    totals() {
+      return this.summaryRows.reduce(
+        (acc, row) => {
+          acc.total += Number(row.total || 0);
+          acc.athleteIn += Number(row.athleteIn || 0);
+          acc.athleteOut += Number(row.athleteOut || 0);
+          acc.coachIn += Number(row.coachIn || 0);
+          acc.coachOut += Number(row.coachOut || 0);
+          acc.chaperonIn += Number(row.chaperonIn || 0);
+          acc.chaperonOut += Number(row.chaperonOut || 0);
+          acc.asstCoachIn += Number(row.asstCoachIn || 0);
+          acc.asstCoachOut += Number(row.asstCoachOut || 0);
+          acc.trainerIn += Number(row.trainerIn || 0);
+          acc.trainerOut += Number(row.trainerOut || 0);
+          acc.totalIn += Number(row.totalIn || 0);
+          acc.totalOut += Number(row.totalOut || 0);
+          return acc;
+        },
+        {
+          total: 0,
+          athleteIn: 0,
+          athleteOut: 0,
+          coachIn: 0,
+          coachOut: 0,
+          chaperonIn: 0,
+          chaperonOut: 0,
+          asstCoachIn: 0,
+          asstCoachOut: 0,
+          trainerIn: 0,
+          trainerOut: 0,
+          totalIn: 0,
+          totalOut: 0
+        }
+      );
+    }
+  },
+  methods: {
+    async loadOverview() {
+      this.showTable = false;
+      this.loading = true;
+      this.summaryRows = [];
+
+      try {
+        const params = {
+          roleGroup: 1 // sports only
+        };
+        if (this.selectedEvent) {
+          params.eventType = this.selectedEvent;
+        }
+
+        const response = await personnelAPI.getAll(params);
+        const persons = Array.isArray(response.data) ? response.data : [];
+
+        // Count by event then by role/status
+        const eventCounts = new Map();
+
+        persons.forEach((p) => {
+          const eventName = p.eventTypeName || (p.eventType !== null && p.eventType !== undefined ? String(p.eventType) : 'Unknown');
+          const roleIdNum = Number(p.roleid || p.role);
+          const roleNameRaw = (p.roleName || p.rolename || p.role || '').toString().toLowerCase();
+          let roleKey = ROLE_MAP[roleIdNum];
+
+          // fallback by string role name in case roleid is not set
+          if (!roleKey) {
+            if (roleNameRaw.includes('athlete')) roleKey = 'athlete';
+            else if (roleNameRaw.includes('asst')) roleKey = 'asstcoach';
+            else if (roleNameRaw.includes('chaperon')) roleKey = 'chaperon';
+            else if (roleNameRaw.includes('coach')) roleKey = 'coach';
+            else if (roleNameRaw.includes('trainer')) roleKey = 'trainer';
+          }
+
+          const status = p.personnelStatus !== null && p.personnelStatus !== undefined
+            ? Number(p.personnelStatus)
+            : ((p.statusName || '').toLowerCase() === 'in' ? 1 : 0);
+
+          if (!roleKey) {
+            return; // skip non-target roles
+          }
+
+          if (!eventCounts.has(eventName)) {
+            eventCounts.set(eventName, {
+              athleteIn: 0,
+              athleteOut: 0,
+              coachIn: 0,
+              coachOut: 0,
+              chaperonIn: 0,
+              chaperonOut: 0,
+              asstCoachIn: 0,
+              asstCoachOut: 0,
+              trainerIn: 0,
+              trainerOut: 0,
+              total: 0
+            });
+          }
+
+          const row = eventCounts.get(eventName);
+          row.total += 1;
+
+          if (roleIdNum === 1) {
+            status === 1 ? row.athleteIn++ : row.athleteOut++;
+          } else if (roleIdNum === 2) {
+            status === 1 ? row.asstCoachIn++ : row.asstCoachOut++;
+          } else if (roleIdNum === 3) {
+            status === 1 ? row.chaperonIn++ : row.chaperonOut++;
+          } else if (roleIdNum === 4) {
+            status === 1 ? row.coachIn++ : row.coachOut++;
+          } else if (roleIdNum === 5) {
+            status === 1 ? row.trainerIn++ : row.trainerOut++;
+          }
+        });
+
+        this.summaryRows = Array.from(eventCounts.entries())
+          .map(([eventType, data]) => {
+            const totalIn = data.athleteIn + data.coachIn + data.chaperonIn + data.asstCoachIn + data.trainerIn;
+            const totalOut = data.athleteOut + data.coachOut + data.chaperonOut + data.asstCoachOut + data.trainerOut;
+            return {
+              eventType,
+              ...data,
+              totalIn,
+              totalOut
+            };
+          })
+          .sort((a, b) => a.eventType.localeCompare(b.eventType));
+
+        this.showTable = true;
+      } catch (err) {
+        console.error('Error loading overview:', err);
+        this.summaryRows = [];
+        this.showTable = true;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    createExcel() {
+      if (!this.summaryRows || this.summaryRows.length === 0) {
+        return;
+      }
+
+      const columns = [
+        'Sports',
+        'Total',
+        'Athlete-IN',
+        'Athlete-OUT',
+        'Coach-IN',
+        'Coach-OUT',
+        'Chaperon-IN',
+        'Chaperon-OUT',
+        'AsstCoach-IN',
+        'AsstCoach-OUT',
+        'Trainer-IN',
+        'Trainer-OUT'
+      ];
+
+      const rows = this.summaryRows.map((r) => [
+        r.eventType,
+        r.total,
+        r.athleteIn,
+        r.athleteOut,
+        r.coachIn,
+        r.coachOut,
+        r.chaperonIn,
+        r.chaperonOut,
+        r.asstCoachIn,
+        r.asstCoachOut,
+        r.trainerIn,
+        r.trainerOut
+      ]);
+
+      const csvContent = [columns.join(','), ...rows.map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))].join('\r\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `overview-in-out-${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+  }
+};
+</script>
+
 
 <!-- <style scoped>
 .overview-view {
