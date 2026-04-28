@@ -29,7 +29,19 @@
 
       <!-- By role group (Sports, Committee, Officials) -->
       <section class="dashboard-section role-groups-section">
-        <h2>Personnel by Role Group</h2>
+        <div class="section-header-with-legend">
+          <h2>Personnel by Role Group</h2>
+          <div class="status-legend">
+            <div class="legend-item">
+              <span class="legend-color in"></span>
+              <span class="legend-label">IN Count</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-color out"></span>
+              <span class="legend-label">OUT Count</span>
+            </div>
+          </div>
+        </div>
         <div class="role-groups-grid">
           <div
             v-for="group in stats.byRoleGroup"
@@ -46,7 +58,12 @@
                 class="sub-role-item"
               >
                 <span class="sub-role-name">{{ role.rolename }}</span>
-                <span class="sub-role-count">{{ role.count }}</span>
+                <span class="sub-role-counts">
+                  <span class="count-in">{{ role.countIn }}</span>
+                  <span class="counts-separator">/</span>
+                  <span class="count-out">{{ role.countOut }}</span>
+                  <span class="counts-total">({{ role.total }})</span>
+                </span>
               </li>
             </ul>
           </div>
@@ -157,6 +174,58 @@ export default {
   border-bottom: 1px solid #eee;
 }
 
+.section-header-with-legend {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 20px;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.section-header-with-legend h2 {
+  margin: 0;
+  padding: 0;
+  border: none;
+  flex: 1;
+}
+
+.status-legend {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.legend-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.legend-color.in {
+  background-color: #22c55e;
+}
+
+.legend-color.out {
+  background-color: #ef4444;
+}
+
+.legend-label {
+  font-weight: 500;
+}
+
 .total-section .stat-total {
   display: flex;
   align-items: baseline;
@@ -241,10 +310,32 @@ export default {
   color: #475569;
 }
 
-.sub-role-count {
+.sub-role-counts {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-weight: 600;
   color: #2c3e50;
-  min-width: 2em;
-  text-align: right;
+}
+
+.count-in {
+  color: #22c55e;
+  font-weight: 700;
+}
+
+.counts-separator {
+  color: #cbd5e1;
+  font-weight: 400;
+}
+
+.count-out {
+  color: #ef4444;
+  font-weight: 700;
+}
+
+.counts-total {
+  color: #64748b;
+  font-weight: 500;
+  font-size: 12px;
 }
 </style>

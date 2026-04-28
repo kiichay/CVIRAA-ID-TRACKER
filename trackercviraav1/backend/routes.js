@@ -2378,18 +2378,34 @@ router.get("/rolegroups", (req, res) => {
 router.get("/dashboard/stats", (req, res) => {
   const totalSql = "SELECT COUNT(*) as total FROM personnel";
   const statusSql = "SELECT COALESCE(personnelStatus, 0) as st, COUNT(*) as cnt FROM personnel GROUP BY COALESCE(personnelStatus, 0)";
+  // BEFORE: Old query that only counted total per role
+  // const byRoleSql = `
+  //   SELECT 
+  //     rg.rolegroupname,
+  //     rg.rolegroupid,
+  //     r.roleid,
+  //     r.rolename,
+  //     COUNT(p.personnelID) as count
+  //   FROM personnel p
+  //   LEFT JOIN role r ON r.roleid = COALESCE(p.role, p.roleid)
+  //   LEFT JOIN roleGroup rg ON r.rolegroupid = rg.rolegroupid
+  //   GROUP BY rg.rolegroupid, rg.rolegroupname, r.roleid, r.rolename
+  //   ORDER BY rg.rolegroupid, r.roleid
+  // `;
+  // AFTER: New query that groups by status to track IN/OUT per role
   const byRoleSql = `
     SELECT 
       rg.rolegroupname,
       rg.rolegroupid,
       r.roleid,
       r.rolename,
+      COALESCE(p.personnelStatus, 0) as status,
       COUNT(p.personnelID) as count
     FROM personnel p
     LEFT JOIN role r ON r.roleid = COALESCE(p.role, p.roleid)
     LEFT JOIN roleGroup rg ON r.rolegroupid = rg.rolegroupid
-    GROUP BY rg.rolegroupid, rg.rolegroupname, r.roleid, r.rolename
-    ORDER BY rg.rolegroupid, r.roleid
+    GROUP BY rg.rolegroupid, rg.rolegroupname, r.roleid, r.rolename, COALESCE(p.personnelStatus, 0)
+    ORDER BY rg.rolegroupid, r.roleid, status
   `;
 
   db.query(totalSql, [], (err, totalRows) => {
@@ -2419,6 +2435,26 @@ router.get("/dashboard/stats", (req, res) => {
         }
 
         const byRoleGroup = {};
+        // BEFORE: Old logic that only tracked total count per role
+        // (roleRows || []).forEach((row) => {
+        //   const groupName = row.rolegroupname || "Unknown";
+        //   if (!byRoleGroup[groupName]) {
+        //     byRoleGroup[groupName] = {
+        //       rolegroupname: groupName,
+        //       rolegroupid: row.rolegroupid,
+        //       total: 0,
+        //       roles: []
+        //     };
+        //   }
+        //   const count = parseInt(row.count, 10) || 0;
+        //   byRoleGroup[groupName].total += count;
+        //   byRoleGroup[groupName].roles.push({
+        //     roleid: row.roleid,
+        //     rolename: row.rolename || "Unknown",
+        //     count
+        //   });
+        // });
+        // AFTER: New logic that tracks IN/OUT status per role
         (roleRows || []).forEach((row) => {
           const groupName = row.rolegroupname || "Unknown";
           if (!byRoleGroup[groupName]) {
@@ -2429,13 +2465,30 @@ router.get("/dashboard/stats", (req, res) => {
               roles: []
             };
           }
+          
           const count = parseInt(row.count, 10) || 0;
+          const status = parseInt(row.status, 10);
+          
+          // Find or create role entry
+          let roleEntry = byRoleGroup[groupName].roles.find(r => r.roleid === row.roleid);
+          if (!roleEntry) {
+            roleEntry = {
+              roleid: row.roleid,
+              rolename: row.rolename || "Unknown",
+              countIn: 0,
+              countOut: 0,
+              total: 0
+            };
+            byRoleGroup[groupName].roles.push(roleEntry);
+          }
+          
+          if (status === 1) {
+            roleEntry.countIn += count;
+          } else {
+            roleEntry.countOut += count;
+          }
+          roleEntry.total += count;
           byRoleGroup[groupName].total += count;
-          byRoleGroup[groupName].roles.push({
-            roleid: row.roleid,
-            rolename: row.rolename || "Unknown",
-            count
-          });
         });
 
         res.json({
