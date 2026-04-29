@@ -408,8 +408,9 @@ export default {
  
 .group-name {
   font-size: 12px;
-  font-weight: 600;
-  color: #64748b;
+  font-weight: 900;
+  /* color: #64748b; */
+  color: #000000;
 }
  
 .group-badge {
