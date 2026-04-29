@@ -1,73 +1,129 @@
 <template>
   <div class="dashboard-view">
     <header class="dashboard-header">
-      <h1>Dashboard</h1>
-      <p class="dashboard-subtitle">System overview</p>
+      <div>
+        <h1>Dashboard</h1>
+        <p class="dashboard-subtitle">System overview · Last updated just now</p>
+      </div>
     </header>
-
-    <div v-if="loading" class="dashboard-loading">Loading overview...</div>
+ 
+    <div v-if="loading" class="dashboard-loading">
+      <div class="loading-spinner"></div>
+      <span>Loading overview...</span>
+    </div>
     <div v-else-if="error" class="dashboard-error">{{ error }}</div>
     <div v-else class="dashboard-content">
-      <!-- Total personnel + Currently IN / OUT -->
-      <section class="dashboard-section total-section">
-        <h2>Total Personnel Registered</h2>
-        <div class="stats-row">
-          <div class="stat-block">
-            <span class="stat-number">{{ stats.totalPersonnel }}</span>
-            <span class="stat-label">personnel in system</span>
-          </div>
-          <div class="stat-block stat-in">
-            <span class="stat-number">{{ stats.currentlyIn }}</span>
-            <span class="stat-label">Currently IN</span>
-          </div>
-          <div class="stat-block stat-out">
-            <span class="stat-number">{{ stats.currentlyOut }}</span>
-            <span class="stat-label">Currently OUT</span>
+ 
+      <!-- Top stat cards -->
+      <div class="stats-strip">
+        <div class="stat-card total">
+          <div class="stat-label">Total Personnel</div>
+          <div class="stat-number total">{{ stats.totalPersonnel.toLocaleString() }}</div>
+          <div class="stat-desc">registered in system</div>
+          <div class="stat-bar">
+            <div class="stat-bar-fill total" style="width: 100%"></div>
           </div>
         </div>
-      </section>
-
-      <!-- By role group (Sports, Committee, Officials) -->
-      <section class="dashboard-section role-groups-section">
-        <div class="section-header-with-legend">
-          <h2>Personnel by Role Group</h2>
-          <div class="status-legend">
-            <div class="legend-item">
-              <span class="legend-color in"></span>
-              <span class="legend-label">IN Count</span>
-            </div>
-            <div class="legend-item">
-              <span class="legend-color out"></span>
-              <span class="legend-label">OUT Count</span>
-            </div>
+        <div class="stat-card s-in">
+          <div class="stat-label">Currently IN</div>
+          <div class="stat-number s-in">{{ stats.currentlyIn.toLocaleString() }}</div>
+          <div class="stat-desc">on premises now</div>
+          <div class="stat-bar">
+            <div
+              class="stat-bar-fill s-in"
+              :style="{ width: stats.totalPersonnel ? (stats.currentlyIn / stats.totalPersonnel * 100) + '%' : '0%' }"
+            ></div>
           </div>
         </div>
-        <div class="role-groups-grid">
+        <div class="stat-card s-out">
+          <div class="stat-label">Currently OUT</div>
+          <div class="stat-number s-out">{{ stats.currentlyOut.toLocaleString() }}</div>
+          <div class="stat-desc">off premises</div>
+          <div class="stat-bar">
+            <div
+              class="stat-bar-fill s-out"
+              :style="{ width: stats.totalPersonnel ? (stats.currentlyOut / stats.totalPersonnel * 100) + '%' : '0%' }"
+            ></div>
+          </div>
+        </div>
+      </div>
+ 
+      <!-- Personnel by Role Group -->
+      <section class="section-card">
+        <div class="section-top">
+          <h2 class="section-title">Personnel by role group</h2>
+          <div class="legend">
+            <div class="leg-item"><span class="leg-dot in"></span>IN count</div>
+            <div class="leg-item"><span class="leg-dot out"></span>OUT count</div>
+          </div>
+        </div>
+ 
+        <!-- Regular groups (non-Officiating) in a 4-col grid -->
+        <div class="groups-grid">
           <div
-            v-for="group in stats.byRoleGroup"
+            v-for="group in regularGroups"
             :key="group.rolegroupname"
-            class="role-group-card"
+            class="group-card"
+            :class="groupClass(group.rolegroupname)"
           >
-            <h3 class="role-group-name">{{ group.rolegroupname }}</h3>
-            <div class="role-group-total">{{ group.total }}</div>
-            <p class="role-group-label">personnel</p>
-            <ul class="sub-roles-list">
-              <li
-                v-for="role in group.roles"
-                :key="role.roleid"
-                class="sub-role-item"
-              >
-                <span class="sub-role-name">{{ role.rolename }}</span>
-                <span class="sub-role-counts">
-                  <span class="count-in">{{ role.countIn }}</span>
-                  <span class="counts-separator">/</span>
-                  <span class="count-out">{{ role.countOut }}</span>
-                  <span class="counts-total">({{ role.total }})</span>
+            <div class="group-header">
+              <span class="group-name">{{ group.rolegroupname }}</span>
+              <span class="group-badge" :class="groupClass(group.rolegroupname)">{{ group.total }}</span>
+            </div>
+            <div class="group-total" :class="groupClass(group.rolegroupname)">{{ group.total }}</div>
+            <p class="group-sub">personnel</p>
+            <div class="group-bar">
+              <div
+                class="group-bar-fill"
+                :class="groupClass(group.rolegroupname)"
+                :style="{ width: stats.totalPersonnel ? (group.total / stats.totalPersonnel * 100) + '%' : '0%' }"
+              ></div>
+            </div>
+            <ul class="role-list">
+              <li v-for="role in group.roles" :key="role.roleid" class="role-row">
+                <span class="role-name">{{ role.rolename }}</span>
+                <span class="role-counts">
+                  <span class="c-in">{{ role.countIn }}</span>
+                  <span class="c-sep">/</span>
+                  <span class="c-out">{{ role.countOut }}</span>
+                  <span class="c-tot">({{ role.total }})</span>
                 </span>
               </li>
             </ul>
           </div>
         </div>
+ 
+        <!-- Officiating group — full width -->
+        <div
+          v-for="group in officiatingGroup"
+          :key="group.rolegroupname"
+          class="group-card officiating-card"
+        >
+          <div class="group-header">
+            <span class="group-name">{{ group.rolegroupname }}</span>
+            <span class="group-badge officiating">{{ group.total }}</span>
+          </div>
+          <div class="group-total officiating">{{ group.total }}</div>
+          <p class="group-sub">personnel</p>
+          <div class="group-bar">
+            <div
+              class="group-bar-fill officiating"
+              :style="{ width: stats.totalPersonnel ? (group.total / stats.totalPersonnel * 100) + '%' : '0%' }"
+            ></div>
+          </div>
+          <ul class="role-list officiating-roles">
+            <li v-for="role in group.roles" :key="role.roleid" class="role-row">
+              <span class="role-name">{{ role.rolename }}</span>
+              <span class="role-counts">
+                <span class="c-in">{{ role.countIn }}</span>
+                <span class="c-sep">/</span>
+                <span class="c-out">{{ role.countOut }}</span>
+                <span class="c-tot">({{ role.total }})</span>
+              </span>
+            </li>
+          </ul>
+        </div>
+ 
       </section>
     </div>
   </div>
@@ -93,6 +149,20 @@ export default {
   mounted() {
     this.loadStats();
   },
+  // BEFORE: Missing computed properties — template referenced regularGroups and officiatingGroup but they didn't exist
+  // AFTER: Added computed properties to filter and separate role groups
+  computed: {
+    regularGroups() {
+      return (this.stats.byRoleGroup || []).filter(
+        group => group.rolegroupname !== 'Officiating'
+      );
+    },
+    officiatingGroup() {
+      return (this.stats.byRoleGroup || []).filter(
+        group => group.rolegroupname === 'Officiating'
+      );
+    }
+  },
   methods: {
     async loadStats() {
       this.loading = true;
@@ -112,230 +182,383 @@ export default {
       } finally {
         this.loading = false;
       }
+    },
+    // BEFORE: Missing groupClass() method — template called it but it didn't exist
+    // AFTER: Added method to map group names to appropriate CSS classes
+    groupClass(groupName) {
+      const name = (groupName || '').toLowerCase();
+      if (name.includes('sport')) return 'sports';
+      if (name.includes('committee')) return 'committee';
+      if (name.includes('official')) return 'officials';
+      if (name.includes('visitor')) return 'visitor';
+      if (name === 'officiating') return 'officiating';
+      return 'sports'; // default
     }
   }
 };
 </script>
 
 <style scoped>
+/* ── Base ── */
 .dashboard-view {
-  padding: 24px;
-  max-width: 1200px;
+  padding: 24px 20px;
+  max-width: 1280px;
   margin: 0 auto;
+  font-family: inherit;
 }
-
+ 
+/* ── Header ── */
 .dashboard-header {
-  margin-bottom: 28px;
+  margin-bottom: 24px;
 }
-
+ 
 .dashboard-header h1 {
-  color: #2c3e50;
-  font-size: 28px;
-  font-weight: 700;
-  margin: 0 0 4px 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 4px;
 }
-
+ 
 .dashboard-subtitle {
-  color: #64748b;
-  font-size: 15px;
+  font-size: 13px;
+  color: #94a3b8;
   margin: 0;
 }
-
-.dashboard-loading,
+ 
+/* ── Loading / Error ── */
+.dashboard-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 48px;
+  justify-content: center;
+  color: #64748b;
+  font-size: 14px;
+}
+ 
+.loading-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #e2e8f0;
+  border-top-color: #42b983;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+ 
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+ 
 .dashboard-error {
   padding: 24px;
   text-align: center;
-  color: #64748b;
-}
-
-.dashboard-error {
   color: #dc2626;
+  font-size: 14px;
 }
-
+ 
+/* ── Content ── */
 .dashboard-content {
   display: flex;
   flex-direction: column;
-  gap: 32px;
-}
-
-.dashboard-section {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  padding: 24px;
-}
-
-.dashboard-section h2 {
-  color: #2c3e50;
-  font-size: 18px;
-  font-weight: 600;
-  margin: 0 0 20px 0;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #eee;
-}
-
-.section-header-with-legend {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
   gap: 20px;
-  margin-bottom: 20px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #eee;
 }
-
-.section-header-with-legend h2 {
-  margin: 0;
-  padding: 0;
-  border: none;
-  flex: 1;
-}
-
-.status-legend {
-  display: flex;
-  gap: 20px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: #475569;
-  white-space: nowrap;
-}
-
-.legend-color {
-  width: 16px;
-  height: 16px;
-  border-radius: 3px;
-  display: inline-block;
-}
-
-.legend-color.in {
-  background-color: #22c55e;
-}
-
-.legend-color.out {
-  background-color: #ef4444;
-}
-
-.legend-label {
-  font-weight: 500;
-}
-
-.total-section .stat-total {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.stat-number {
-  font-size: 42px;
-  font-weight: 700;
-  color: #42b983;
-  line-height: 1;
-}
-
-.stat-label {
-  font-size: 16px;
-  color: #64748b;
-}
-
-.role-groups-grid {
+ 
+/* ── Stat Strip ── */
+.stats-strip {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
+  gap: 12px;
 }
-
-@media (max-width: 900px) {
-  .role-groups-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 560px) {
-  .role-groups-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.role-group-card {
-  background: #f8fafc;
-  border-radius: 10px;
-  padding: 18px;
+ 
+.stat-card {
+  position: relative;
+  overflow: hidden;
+  background: #ffffff;
   border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px 22px 18px;
 }
-
-.role-group-name {
-  font-size: 16px;
+ 
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 12px 12px 0 0;
+}
+ 
+.stat-card.total::before { background: #1D9E75; }
+.stat-card.s-in::before  { background: #22c55e; }
+.stat-card.s-out::before { background: #ef4444; }
+ 
+.stat-label {
+  font-size: 11px;
   font-weight: 600;
-  color: #2c3e50;
-  margin: 0 0 8px 0;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  margin-bottom: 8px;
 }
-
-.role-group-total {
-  font-size: 28px;
+ 
+.stat-number {
+  font-size: 36px;
   font-weight: 700;
-  color: #42b983;
-  line-height: 1.2;
+  line-height: 1;
+  margin-bottom: 4px;
 }
-
-.role-group-label {
-  font-size: 13px;
+ 
+.stat-number.total { color: #1D9E75; }
+.stat-number.s-in  { color: #16a34a; }
+.stat-number.s-out { color: #dc2626; }
+ 
+.stat-desc {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-bottom: 14px;
+}
+ 
+.stat-bar {
+  height: 3px;
+  background: #f1f5f9;
+  border-radius: 2px;
+  overflow: hidden;
+}
+ 
+.stat-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.6s ease;
+}
+ 
+.stat-bar-fill.total { background: #1D9E75; }
+.stat-bar-fill.s-in  { background: #22c55e; }
+.stat-bar-fill.s-out { background: #ef4444; }
+ 
+/* ── Section Card ── */
+.section-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px;
+}
+ 
+.section-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+ 
+.section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0;
+}
+ 
+.legend {
+  display: flex;
+  gap: 16px;
+}
+ 
+.leg-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
   color: #64748b;
-  margin: 0 0 14px 0;
 }
-
-.sub-roles-list {
+ 
+.leg-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+ 
+.leg-dot.in  { background: #22c55e; }
+.leg-dot.out { background: #ef4444; }
+ 
+/* ── Groups Grid ── */
+.groups-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+ 
+/* ── Group Card ── */
+.group-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+ 
+.group-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+ 
+.group-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+}
+ 
+.group-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 99px;
+}
+ 
+.group-badge.sports      { background: #dcfce7; color: #15803d; }
+.group-badge.committee   { background: #dbeafe; color: #1d4ed8; }
+.group-badge.officials   { background: #fef3c7; color: #b45309; }
+.group-badge.visitor     { background: #ede9fe; color: #7c3aed; }
+.group-badge.officiating { background: #fee2e2; color: #b91c1c; }
+ 
+.group-total {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+ 
+.group-total.sports      { color: #1D9E75; }
+.group-total.committee   { color: #2563eb; }
+.group-total.officials   { color: #d97706; }
+.group-total.visitor     { color: #7c3aed; }
+.group-total.officiating { color: #dc2626; }
+ 
+.group-sub {
+  font-size: 11px;
+  color: #94a3b8;
+  margin: 0 0 10px;
+}
+ 
+.group-bar {
+  height: 2px;
+  background: #e2e8f0;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+ 
+.group-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.6s ease;
+}
+ 
+.group-bar-fill.sports      { background: #1D9E75; }
+.group-bar-fill.committee   { background: #2563eb; }
+.group-bar-fill.officials   { background: #d97706; }
+.group-bar-fill.visitor     { background: #7c3aed; }
+.group-bar-fill.officiating { background: #dc2626; }
+ 
+/* ── Role List ── */
+.role-list {
   list-style: none;
   margin: 0;
   padding: 0;
   border-top: 1px solid #e2e8f0;
-  padding-top: 12px;
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
-
-.sub-role-item {
+ 
+.role-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 0;
-  font-size: 14px;
+  gap: 6px;
 }
-
-.sub-role-name {
-  color: #475569;
+ 
+.role-name {
+  font-size: 11px;
+  color: #64748b;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-
-.sub-role-counts {
+ 
+.role-counts {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-weight: 600;
-  color: #2c3e50;
+  gap: 3px;
+  font-size: 11px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
-
-.count-in {
-  color: #22c55e;
-  font-weight: 700;
+ 
+.c-in  { color: #16a34a; font-weight: 600; }
+.c-sep { color: #cbd5e1; }
+.c-out { color: #dc2626; font-weight: 600; }
+.c-tot { color: #94a3b8; font-size: 10px; }
+ 
+/* ── Officiating Full-Width Card ── */
+.officiating-card {
+  width: 100%;
 }
-
-.counts-separator {
-  color: #cbd5e1;
-  font-weight: 400;
+ 
+.officiating-roles {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px 24px;
+  flex-direction: unset;
 }
-
-.count-out {
-  color: #ef4444;
-  font-weight: 700;
+ 
+/* ── Responsive ── */
+@media (max-width: 1024px) {
+  .groups-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+ 
+  .officiating-roles {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
-
-.counts-total {
-  color: #64748b;
-  font-weight: 500;
-  font-size: 12px;
+ 
+@media (max-width: 768px) {
+  .stats-strip {
+    grid-template-columns: 1fr;
+  }
+ 
+  .groups-grid {
+    grid-template-columns: 1fr;
+  }
+ 
+  .officiating-roles {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+ 
+@media (max-width: 480px) {
+  .dashboard-view {
+    padding: 16px 12px;
+  }
+ 
+  .stat-number {
+    font-size: 28px;
+  }
+ 
+  .officiating-roles {
+    grid-template-columns: 1fr;
+  }
+ 
+  .section-top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
 }
 </style>
