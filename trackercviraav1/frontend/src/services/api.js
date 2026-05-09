@@ -125,6 +125,20 @@ export const personnelAPI = {
   // Set all IN personnel to OUT status
   setAllPersonnelOutStatus: () => {
     return api.put('/personnel/set-all-out');
+  },
+
+  // Reset Factory: Generate backup PDF and delete personnel records
+  // payload: { role?, roleGroup? }
+  // If both are undefined, deletes all personnel
+  resetFactory: (payload = {}) => {
+    return api.post('/reset-factory', payload);
+  },
+
+  // Download a backup PDF file
+  downloadBackupPDF: (filename) => {
+    return api.get(`/reset-factory/download/${filename}`, {
+      responseType: 'blob'
+    });
   }
 };
 

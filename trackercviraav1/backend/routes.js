@@ -2585,5 +2585,256 @@ router.post("/cooldown/settings", async (req, res) => {
   }
 });
 
+// =================== RESET FACTORY ROUTE ===================
+
+// POST /reset-factory - Generate backup PDF and delete personnel records
+// Request body: { role?, roleGroup? }
+// If both are undefined/null, deletes all personnel
+router.post("/reset-factory", async (req, res) => {
+  try {
+    const { role, roleGroup } = req.body;
+    
+    // Build query to fetch personnel matching the filter
+    let sql = `
+      SELECT 
+        p.personnelID,
+        p.fname,
+        p.mname,
+        p.lname,
+        COALESCE(p.roleid, p.role) as role,
+        p.roleid,
+        p.roleType,
+        p.eventType,
+        p.picture,
+        p.personnelStatus,
+        p.created_at,
+        p.updated_at,
+        r.roleid as role_roleid,
+        r.rolename,
+        rg.rolegroupid,
+        rg.rolegroupname,
+        et.label AS eventTypeName
+      FROM personnel p
+      LEFT JOIN role r ON r.roleid = COALESCE(p.role, p.roleid)
+      LEFT JOIN roleGroup rg ON r.rolegroupid = rg.rolegroupid
+      LEFT JOIN event_types et ON p.eventType = et.eventTypeID
+      WHERE 1=1
+    `;
+
+    const params = [];
+
+    // Filter by role if provided
+    if (role !== undefined && role !== null && role !== '') {
+      const roleVals = String(role).split(',').map((s) => parseInt(s.trim(), 10)).filter((n) => !isNaN(n));
+      if (roleVals.length > 0) {
+        const placeholders = roleVals.map(() => '?').join(',');
+        sql += ` AND (p.roleid IN (${placeholders}) OR p.role IN (${placeholders}))`;
+        params.push(...roleVals, ...roleVals);
+      }
+    }
+
+    // Filter by roleGroup if provided
+    if (roleGroup !== undefined && roleGroup !== null && roleGroup !== '') {
+      const roleGroupVals = String(roleGroup).split(',').map((s) => parseInt(s.trim(), 10)).filter((n) => !isNaN(n));
+      if (roleGroupVals.length > 0) {
+        sql += ` AND rg.rolegroupid IN (${roleGroupVals.map(() => '?').join(',')})`;
+        params.push(...roleGroupVals);
+      }
+    }
+
+    sql += " ORDER BY created_at DESC";
+
+    // Fetch personnel matching criteria
+    db.query(sql, params, async (err, personnelRows) => {
+      if (err) {
+        console.error("Error fetching personnel for reset-factory:", err);
+        return res.status(500).json({ error: err.message });
+      }
+
+      console.log(`[RESET-FACTORY] Processing ${personnelRows.length} personnel records`);
+
+      const PDFDocument = require('pdfkit');
+      const path = require('path');
+      const fs = require('fs');
+
+      try {
+        // Create backup folder if it doesn't exist
+        const backupDir = path.join(__dirname, 'uploads', 'backups');
+        if (!fs.existsSync(backupDir)) {
+          fs.mkdirSync(backupDir, { recursive: true });
+        }
+
+        // Generate timestamp for filename
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0] + '_' + Date.now();
+        const pdfFileName = `personnel_backup_${timestamp}.pdf`;
+        const pdfFilePath = path.join(backupDir, pdfFileName);
+
+        console.log(`[RESET-FACTORY] Creating PDF: ${pdfFileName}`);
+
+        // Create PDF document and stream
+        const pdfDoc = new PDFDocument({ size: 'A4', margin: 40 });
+        const pdfStream = fs.createWriteStream(pdfFilePath);
+
+        // Handle stream errors
+        pdfStream.on('error', (err) => {
+          console.error('[RESET-FACTORY] PDF stream error:', err);
+          res.status(500).json({ error: "Failed to write backup PDF: " + err.message });
+        });
+
+        pdfDoc.pipe(pdfStream);
+
+        // Add title and header
+        pdfDoc.fontSize(20).font('Helvetica-Bold').text('Personnel Records Backup', { align: 'center' });
+        pdfDoc.fontSize(10).font('Helvetica').text(new Date().toLocaleString(), { align: 'center' });
+        
+        // Add filter info
+        let filterInfo = [];
+        if (role) filterInfo.push(`Role: ${role}`);
+        if (roleGroup) filterInfo.push(`Role Group: ${roleGroup}`);
+        if (filterInfo.length > 0) {
+          pdfDoc.text(`Filters: ${filterInfo.join(', ')}`, { align: 'center' });
+        }
+        
+        pdfDoc.text(`Total Records: ${personnelRows.length}`, { align: 'center' });
+        pdfDoc.moveDown();
+
+        // Add personnel records to PDF
+        for (const person of personnelRows) {
+          try {
+            const fullName = `${person.fname} ${person.mname ? person.mname + ' ' : ''}${person.lname}`.trim();
+            const roleName = person.rolename || person.role || 'N/A';
+            const eventTypeName = person.eventTypeName || 'N/A';
+            const status = person.personnelStatus === 1 ? 'IN' : 'OUT';
+            const dateAdded = person.created_at ? new Date(person.created_at).toLocaleDateString() : 'N/A';
+
+            // Add person section
+            pdfDoc.fontSize(12).font('Helvetica-Bold').text(`ID: ${person.personnelID}`, { underline: true });
+            pdfDoc.fontSize(10).font('Helvetica');
+            pdfDoc.text(`Name: ${fullName}`);
+            pdfDoc.text(`Role: ${roleName}`);
+            pdfDoc.text(`Event Type: ${eventTypeName}`);
+            pdfDoc.text(`Status: ${status}`);
+            pdfDoc.text(`Date Added: ${dateAdded}`);
+            pdfDoc.text(`Picture: ${person.picture ? 'Yes' : 'No'}`);
+
+            pdfDoc.moveDown();
+            pdfDoc.moveTo(40, pdfDoc.y).lineTo(540, pdfDoc.y).stroke();
+            pdfDoc.moveDown();
+
+          } catch (e) {
+            console.warn(`Error processing personnel ${person.personnelID} for PDF:`, e.message);
+          }
+        }
+
+        // Finalize PDF
+        pdfDoc.end();
+
+        console.log('[RESET-FACTORY] PDF document ended, waiting for stream to finish...');
+
+        // Wait for stream to finish writing
+        pdfStream.on('finish', async () => {
+          console.log(`[RESET-FACTORY] PDF backup created successfully: ${pdfFileName}`);
+
+          // Delete personnel records
+          const personnelIDs = personnelRows.map(p => p.personnelID);
+          
+          if (personnelIDs.length === 0) {
+            console.log('[RESET-FACTORY] No personnel records to delete');
+            return res.json({
+              success: true,
+              message: "No personnel matched the filter criteria",
+              deletedCount: 0,
+              backupFile: pdfFileName
+            });
+          }
+
+          console.log(`[RESET-FACTORY] Deleting ${personnelIDs.length} personnel records...`);
+
+          // Delete pictures first
+          for (const person of personnelRows) {
+            if (person.picture) {
+              try {
+                const picPath = path.join(profileBaseDir, person.picture);
+                if (fs.existsSync(picPath)) {
+                  fs.unlinkSync(picPath);
+                  console.log(`[RESET-FACTORY] Deleted picture: ${person.picture}`);
+                }
+              } catch (e) {
+                console.warn(`Could not delete picture for personnel ${person.personnelID}:`, e.message);
+              }
+            }
+          }
+
+          // Delete personnel records from database
+          const placeholders = personnelIDs.map(() => '?').join(',');
+          const deleteSql = `DELETE FROM personnel WHERE personnelID IN (${placeholders})`;
+          
+          db.query(deleteSql, personnelIDs, (delErr) => {
+            if (delErr) {
+              console.error("[RESET-FACTORY] Error deleting personnel:", delErr);
+              return res.status(500).json({ error: "Failed to delete personnel records: " + delErr.message });
+            }
+
+            console.log(`[RESET-FACTORY] Successfully deleted ${personnelIDs.length} personnel records`);
+            console.log(`[RESET-FACTORY] Reset Factory operation completed`);
+
+            res.json({
+              success: true,
+              message: `Backup PDF saved. ${personnelIDs.length} personnel records and profile pictures have been deleted.`,
+              deletedCount: personnelIDs.length,
+              backupFile: pdfFileName
+            });
+          });
+        });
+
+      } catch (error) {
+        console.error('[RESET-FACTORY] Error in PDF generation:', error);
+        res.status(500).json({ error: "Failed in reset-factory: " + error.message });
+      }
+    });
+  } catch (error) {
+    console.error("Error in reset-factory:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /reset-factory/download/:filename - Download a backup PDF
+router.get("/reset-factory/download/:filename", (req, res) => {
+  try {
+    const filename = req.params.filename;
+    
+    // Sanitize filename to prevent directory traversal
+    if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+      return res.status(400).json({ error: "Invalid filename" });
+    }
+
+    const path = require('path');
+    const fs = require('fs');
+    
+    const backupDir = path.join(__dirname, 'uploads', 'backups');
+    const filePath = path.join(backupDir, filename);
+
+    // Check file exists
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: "Backup PDF not found" });
+    }
+
+    // Set headers and send file
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    
+    const fileStream = fs.createReadStream(filePath);
+    fileStream.pipe(res);
+
+    fileStream.on('error', (err) => {
+      console.error('Error downloading backup PDF:', err);
+      res.status(500).json({ error: "Failed to download backup PDF" });
+    });
+  } catch (error) {
+    console.error('Error in reset-factory download:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;
 

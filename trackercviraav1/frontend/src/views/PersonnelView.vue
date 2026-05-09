@@ -2,7 +2,10 @@
   <div class="personnel-view">
     <div class="header">
       <h1>Personnel Management</h1>
-      <button @click="showAddForm = true" class="btn btn-primary">Add New Personnel</button>
+      <div class="header-actions">
+        <button @click="showAddForm = true" class="btn btn-primary">Add New Personnel</button>
+        <button @click="showResetFactoryDialog = true" class="btn btn-danger btn-reset-factory" title="Generate backup PDF and reset all personnel data">Reset Factory</button>
+      </div>
     </div>
 
     <!-- Filters -->
@@ -194,6 +197,15 @@
 
     <!-- ID Card Modal -->
     <IdCardView :idCard="selectedIdCard" @close="closeIdCard" />
+
+    <!-- Reset Factory Dialog -->
+    <ResetFactoryDialog
+      :show="showResetFactoryDialog"
+      :roleGroups="roleGroups"
+      :allRoles="allRoles"
+      @close="showResetFactoryDialog = false"
+      @reset-success="handleResetFactorySuccess"
+    />
   </div>
 </template>
 
@@ -202,13 +214,15 @@ import { personnelAPI, eventTypes, getImageUrl, getInitials, loadRolesFromAPI, l
 import PersonnelForm from '@/components/PersonnelForm.vue';
 import StatusHistoryModal from '@/components/StatusHistoryModal.vue';
 import IdCardView from '@/components/IdCardView.vue';
+import ResetFactoryDialog from '@/components/ResetFactoryDialog.vue';
 
 export default {
   name: 'PersonnelView',
   components: {
     PersonnelForm,
     StatusHistoryModal,
-    IdCardView
+    IdCardView,
+    ResetFactoryDialog
   },
   data() {
     return {
@@ -236,7 +250,8 @@ export default {
       showRoleMenu: false,
       hoveredRoleGroup: null,
       eventTypes: [],
-      roleMenuCloseTimer: null
+      roleMenuCloseTimer: null,
+      showResetFactoryDialog: false
     };
   },
   async mounted() {
@@ -570,6 +585,15 @@ export default {
         this.searchDebounceTimer = null;
       }
     },
+    handleResetFactorySuccess() {
+      // Close the dialog
+      this.showResetFactoryDialog = false;
+      
+      // Refresh the personnel list to reflect the changes
+      if (this.hasActiveFilter) {
+        this.loadPersonnel();
+      }
+    },
     getImageUrl
   }
 };
@@ -592,6 +616,33 @@ export default {
 .header h1 {
   color: #2c3e50;
   margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.btn-reset-factory {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-reset-factory:hover {
+  background: #c82333;
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+}
+
+.btn-reset-factory:active {
+  transform: translateY(1px);
 }
 
 .filters {
